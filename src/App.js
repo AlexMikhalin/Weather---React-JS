@@ -3,7 +3,7 @@ import Info from './components/info';
 import Weather from './components/weather';
 import Form from './components/form';
 
-const API_KEY = "785d769db8bc81a43fbf90c35f182125"; 
+const API_KEY = process.env.REACT_APP_OPENWEATHER_API_KEY;
 
 class App extends React.Component {
 
@@ -18,26 +18,60 @@ class App extends React.Component {
 
   gettingWeather = async(e) => {
     e.preventDefault();
-    const city = e.target.elements.city.value;
+    const city = e.target.elements.city.value.trim();
     
     if(city) {
-      const api_url = await 
-      fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`);
-      const data = await api_url.json();
-    
-      var sunset = data.sys.sunset;
-      var date = new Date();
-      date.setTime(sunset);
-      var sunset_date = date.getHours()+ ":" + date.getMinutes() + ":" + date.getSeconds();
+      if (!API_KEY) {
+        this.setState({
+          temp: undefined,
+          city: undefined,
+          country: undefined,
+          pressure: undefined,
+          sunset: undefined,
+          error: "OpenWeather API key is missing"
+        });
+        return;
+      }
 
-      this.setState({
-      temp: data.main.temp,
-      city: data.name,
-      country: data.sys.country,
-      pressure: data.main.pressure,
-      sunset: sunset_date,
-      error: undefined
-    });
+      try {
+        const api_url = await 
+        fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`);
+        const data = await api_url.json();
+
+        if (!api_url.ok || !data.main || !data.sys) {
+          this.setState({
+            temp: undefined,
+            city: undefined,
+            country: undefined,
+            pressure: undefined,
+            sunset: undefined,
+            error: data.message ? data.message : "Weather data was not found"
+          });
+          return;
+        }
+
+        var sunset = data.sys.sunset;
+        var date = new Date(sunset * 1000);
+        var sunset_date = date.getHours()+ ":" + date.getMinutes() + ":" + date.getSeconds();
+
+        this.setState({
+        temp: data.main.temp,
+        city: data.name,
+        country: data.sys.country,
+        pressure: data.main.pressure,
+        sunset: sunset_date,
+        error: undefined
+      });
+      } catch (error) {
+        this.setState({
+          temp: undefined,
+          city: undefined,
+          country: undefined,
+          pressure: undefined,
+          sunset: undefined,
+          error: "Unable to load weather data"
+        });
+      }
   } else {
       this.setState({
         temp: undefined,
